@@ -1,91 +1,83 @@
 import requests
 
-class Testing_Google_map_API_PUT_Create_New_Location:
-    """
-    Я работаю с Google Maps API:
-    - создаю новое место через POST
-    - проверяю последнее место через GET
-    """
-    
-    def __init__(self, URL_basic, resource1, resource2, body, key):
-        # Сохраняю основные данные для работы с API
-        self.URL_basic = URL_basic
-        self.resource1 = resource1
-        self.resource2 = resource2
-        self.body = body
-        self.key = key
-        self.URL1 = f"{self.URL_basic}{self.resource1}?key={self.key}"  # URL для POST
+class TestPlaceAPI:
+    """Класс для работы с Google Maps API"""
 
-    def POST_request_and_write_text_file(self):
-        # Отправляю POST запрос и получаю place_id
-        response = requests.post(self.URL1, json=self.body)
-        assert response.status_code == 200, "Ошибка POST запроса"
+    BASE_URL = "https://rahulshettyacademy.com/maps/api/place"
+    KEY = "qaclick123"
 
-        place_id = response.json().get("place_id")
-        assert place_id, "place_id отсутствует"
+    def create_location(self, name_suffix=""):
+        """Создание новой локации через POST"""
+        post_url = f"{self.BASE_URL}/add/json?key={self.KEY}"
+        json_body = {
+            "location": {"lat": -38.383494, "lng": 33.427362},
+            "accuracy": 50,
+            "name": f"Frontline house{name_suffix}",
+            "phone_number": "(+91) 983 893 3937",
+            "address": "29, side layout, cohen 09",
+            "types": ["shoe park", "shop"],
+            "website": "http://google.com",
+            "language": "French-IN"
+        }
+        r = requests.post(post_url, json=json_body)
+        assert r.status_code == 200, "POST статус код не 200"
+        place_id = r.json().get("place_id")
+        print(f"Создан place_id: {place_id}")
 
-        # Сохраняю place_id в файл
-        with open("my_file.txt", "a", encoding="utf-8") as file:
-            file.write(f"{place_id}\n")
-        
+
+       
+        with open("place_id.txt", "a", encoding="utf-8") as f:
+            f.write(f"{place_id}\n")
         return place_id
 
-    def GET_request_check_last_place_id(self):
-        # Беру последний place_id из файла
-        last_place_id = None
-        with open("my_file.txt", "r", encoding="utf-8") as file:
-            for line in file:
-                clean_line = line.strip()
-                if clean_line:
-                    last_place_id = clean_line
+    def delete_location(self, place_id):
+        """Удаление локации через DELETE"""
+        delete_url = f"{self.BASE_URL}/delete/json?key={self.KEY}"
+        r = requests.post(delete_url, json={"place_id": place_id})
+        assert r.status_code == 200, f"DELETE ошибка для {place_id}"
+        print(f"Удалена place_id: {place_id}")
 
-        if not last_place_id:
-            print("Файл пустой, нет place_id для проверки")
-            return
-
-        # Отправляю GET запрос и проверяю имя места
-        URL_get = f"{self.URL_basic}{self.resource2}?place_id={last_place_id}&key={self.key}"
-        response = requests.get(URL_get)
-        if response.status_code != 200:
-            print(f"Ошибка GET запроса для place_id={last_place_id}")
-            return
-
-        data = response.json()
-        if data.get("name") == self.body.get("name"):
-            print(f"Последний place_id={last_place_id} успешно проверен")
+    def get_location(self, place_id):
+        """GET-запрос для проверки существования локации"""
+        get_url = f"{self.BASE_URL}/get/json?key={self.KEY}&place_id={place_id}"
+        r = requests.get(get_url)
+        if r.status_code == 200:
+            return True, r.json().get("name")
         else:
-            print(f"Последний place_id={last_place_id} проверка не пройдена")
+            return False, None
 
 
-# Настройки API
-URL_basic = "https://rahulshettyacademy.com"
-resource1 = "/maps/api/place/add/json"
-resource2 = "/maps/api/place/get/json"
-key = "qaclick123"
 
-body = {
-    "location": {"lat": -38.383494, "lng": 33.427362},
-    "accuracy": 50,
-    "name": "Frontline house",
-    "phone_number": "(+91) 983 893 3937",
-    "address": "29, side layout, cohen 09",
-    "types": ["shoe park", "shop"],
-    "website": "http://google.com",
-    "language": "French-IN"
-}
+api = TestPlaceAPI()
+for i in range(5):
+    api.create_location(name_suffix=f" {i+1}")
 
-# Создаю объект
-new_object = Testing_Google_map_API_PUT_Create_New_Location(
-    URL_basic=URL_basic,
-    resource1=resource1,
-    resource2=resource2,
-    body=body,
-    key=key
-)
 
-# Создаю новое место
-res_place_id = new_object.POST_request_and_write_text_file()
-print(f"Создан place_id: {res_place_id}")
 
-# Проверяю последнее место
-new_object.GET_request_check_last_place_id()
+with open("place_id.txt", "r") as f:
+    list_place_ids = [line.strip() for line in f]
+
+
+for index in [1, 3]:  
+    api.delete_location(list_place_ids[index])
+
+
+existing_place_ids = []
+non_existing_place_ids = []
+
+for pid in list_place_ids:
+    exists, name = api.get_location(pid)
+    if exists:
+        existing_place_ids.append(pid)
+    else:
+        non_existing_place_ids.append(pid)
+
+
+
+with open("несуществующие place_id.txt", "w") as f:
+    for pid in existing_place_ids:
+        f.write(f"{pid}\n")
+
+
+print(f"\nСуществующие place_id: {existing_place_ids}")
+print(f"Несуществующие place_id: {non_existing_place_ids}")
